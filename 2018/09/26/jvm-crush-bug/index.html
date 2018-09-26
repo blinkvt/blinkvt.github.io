@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+
+
+
+  
+
+
+<html class="theme-next muse use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+<meta name="theme-color" content="#222">
+
+
+
+
+
+
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.4" rel="stylesheet" type="text/css" />
+
+
+  <link rel="apple-touch-icon" sizes="180x180" href="/images/apple-touch-icon-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="32x32" href="/images/favicon-32x32-next.png?v=5.1.4">
+
+
+  <link rel="icon" type="image/png" sizes="16x16" href="/images/favicon-16x16-next.png?v=5.1.4">
+
+
+  <link rel="mask-icon" href="/images/logo.svg?v=5.1.4" color="#222">
+
+
+
+
+
+  <meta name="keywords" content="jvm,javaagent," />
+
+
+
+
+
+
+
+
+
+
+<meta name="description" content="事件回顾rhino-agent提供故障注入的功能，为了做到最大的灵活性和对业务无侵入，使用它可以不需要修改代码，不引入jar包甚至不需要重启，只需要在rhino管理端点一点即可注入故障。这种热更新的是主要通过agent自定义的classloader来实现，classloader每次attach的时候都会重新new一个自定义的classloader来负责加载agent jar包中所有的类。 初次验证">
+<meta name="keywords" content="jvm,javaagent">
+<meta property="og:type" content="article">
+<meta property="og:title" content="一次jvm crush问题排查">
+<meta property="og:url" content="https://tinyblink.github.io/2018/09/26/jvm-crush-bug/index.html">
+<meta property="og:site_name" content="Tinyblink&#39;s Blog">
+<meta property="og:description" content="事件回顾rhino-agent提供故障注入的功能，为了做到最大的灵活性和对业务无侵入，使用它可以不需要修改代码，不引入jar包甚至不需要重启，只需要在rhino管理端点一点即可注入故障。这种热更新的是主要通过agent自定义的classloader来实现，classloader每次attach的时候都会重新new一个自定义的classloader来负责加载agent jar包中所有的类。 初次验证">
+<meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="https://ws3.sinaimg.cn/large/006tNc79ly1fvncni2llqj30q206ujrk.jpg">
+<meta property="og:image" content="https://ws3.sinaimg.cn/large/006tNc79ly1fvncphytcej31aa0ncgnb.jpg">
+<meta property="og:image" content="https://ws3.sinaimg.cn/large/006tNc79ly1fvncorsa83j31a00tcq4z.jpg">
+<meta property="og:image" content="https://ws4.sinaimg.cn/large/006tNc79ly1fvncw2zp5nj319w0ds3zm.jpg">
+<meta property="og:image" content="https://ws3.sinaimg.cn/large/006tNc79ly1fvncye8spwj319y0z8wi9.jpg">
+<meta property="og:image" content="https://ws2.sinaimg.cn/large/006tNc79ly1fvncwx24wcj318g0mqq5f.jpg">
+<meta property="og:image" content="https://ws1.sinaimg.cn/large/006tNc79ly1fvncypb9nqj30vy04k0sz.jpg">
+<meta property="og:image" content="https://ws4.sinaimg.cn/large/006tNc79ly1fvnczi1fsyj310a05emx8.jpg">
+<meta property="og:image" content="https://ws3.sinaimg.cn/large/006tNc79ly1fvncz9zxssj31b40jot9x.jpg">
+<meta property="og:image" content="https://ws1.sinaimg.cn/large/006tNc79ly1fvnd07x0icj30xo0b0dg7.jpg">
+<meta property="og:image" content="https://ws2.sinaimg.cn/large/006tNc79ly1fvnd0xcv34j30za0o8ab0.jpg">
+<meta property="og:image" content="https://ws2.sinaimg.cn/large/006tNc79ly1fvnd1igdr8j318q0wk76c.jpg">
+<meta property="og:image" content="https://ws4.sinaimg.cn/large/006tNc79ly1fvnd1pqfqqj31kw0vsjth.jpg">
+<meta property="og:image" content="https://ws3.sinaimg.cn/large/006tNc79ly1fvnd2nw54uj31300l2dgq.jpg">
+<meta property="og:image" content="https://ws2.sinaimg.cn/large/006tNc79ly1fvnd2abb0oj30yc0wcgn2.jpg">
+<meta property="og:updated_time" content="2018-09-26T15:35:32.701Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="一次jvm crush问题排查">
+<meta name="twitter:description" content="事件回顾rhino-agent提供故障注入的功能，为了做到最大的灵活性和对业务无侵入，使用它可以不需要修改代码，不引入jar包甚至不需要重启，只需要在rhino管理端点一点即可注入故障。这种热更新的是主要通过agent自定义的classloader来实现，classloader每次attach的时候都会重新new一个自定义的classloader来负责加载agent jar包中所有的类。 初次验证">
+<meta name="twitter:image" content="https://ws3.sinaimg.cn/large/006tNc79ly1fvncni2llqj30q206ujrk.jpg">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Muse',
+    version: '5.1.4',
+    sidebar: {"position":"left","display":"post","offset":12,"b2t":false,"scrollpercent":false,"onmobile":false},
+    fancybox: true,
+    tabs: true,
+    motion: {"enable":true,"async":false,"transition":{"post_block":"fadeIn","post_header":"slideDownIn","post_body":"slideDownIn","coll_header":"slideLeftIn","sidebar":"slideUpIn"}},
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="https://tinyblink.github.io/2018/09/26/jvm-crush-bug/"/>
+
+
+
+
+
+  <title>一次jvm crush问题排查 | Tinyblink's Blog</title>
+  
+
+
+
+
+
+
+
+
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+  
+    
+  
+
+  <div class="container sidebar-position-left page-post-detail">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">Tinyblink's Blog</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle">记录 沉淀 感悟</p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://tinyblink.github.io/2018/09/26/jvm-crush-bug/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="tinyblink">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Tinyblink's Blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">一次jvm crush问题排查</h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-09-26T22:45:08+08:00">
+                2018-09-26
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/踩坑/" itemprop="url" rel="index">
+                    <span itemprop="name">踩坑</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <h1 id="事件回顾"><a href="#事件回顾" class="headerlink" title="事件回顾"></a>事件回顾</h1><p>rhino-agent提供故障注入的功能，为了做到最大的灵活性和对业务无侵入，使用它可以不需要修改代码，不引入jar包甚至不需要重启，只需要在rhino管理端点一点即可注入故障。这种热更新的是主要通过agent自定义的classloader来实现，classloader每次attach的时候都会重新new一个自定义的classloader来负责加载agent jar包中所有的类。</p>
+<p>初次验证agent jar包更新，操作多次都是符合预期的，就正常在线上发布了。</p>
+<p>运行了几个月确实没啥问题，觉得万事大吉。后来业务发展，提出了新的需求，由于时间紧，开发的新功能中一不小心写了个bug，有一天一个服务使用故障注入的时候正好碰到了这个bug导致注入失败。时间当时是晚上10点多，为了让业务同学尽快使用，我决定手动更新回退到老版本。业务机器共有30台，没有办法获取运维协助的情况下我自告奋勇决定手动一台台更新，整个更换过程40分钟（每当心中燃起服务意识的时候感觉就极易出锅），在这中间有3台服务出现异常，业务重启了，其他机器正常。</p>
+<p>然而，随后业务按流程在管理端点击注入故障后告诉我除了刚重启的3台外其他的机器都注入失败。<br><img src="https://ws3.sinaimg.cn/large/006tNc79ly1fvncni2llqj30q206ujrk.jpg" alt=""></p>
+<a id="more"></a>
+<p>这个问题一般是agent进程挂了，我登到机器上ps一下，发现agent进程还在但java进程居然挂了！于是立马通知业务重启挂掉的服务。</p>
+<h1 id="问题排查"><a href="#问题排查" class="headerlink" title="问题排查"></a>问题排查</h1><p>心有余悸。首先这不是一个必现的情况，因为我之前测试的时候并没有测出来这种情况。</p>
+<p>开始排查问题，因为java进程已经挂掉了，第一时间想看下core文件，到机器上cat /proc/sys/kernel/core_pattern 却发现不知是公司用户权限还什么原因core文件并没有生成。于是直接看tomcat日志<br><img src="https://ws3.sinaimg.cn/large/006tNc79ly1fvncphytcej31aa0ncgnb.jpg" alt=""></p>
+<p>根据信息查看crush时生成的致命错误日志<img src="https://ws3.sinaimg.cn/large/006tNc79ly1fvncorsa83j31a00tcq4z.jpg" alt=""><br><img src="https://ws4.sinaimg.cn/large/006tNc79ly1fvncw2zp5nj319w0ds3zm.jpg" alt="">                                                 </p>
+<p>这里crush的原因是非法访问了虚拟内存对应的地址，这个虚拟内存地址可以在最后面看出是rhino-agent.jar这个动态jar包的。显然问题跟rhino-agent.jar包的更新有关。<br><img src="https://ws3.sinaimg.cn/large/006tNc79ly1fvncye8spwj319y0z8wi9.jpg" alt=""><br>通过调用栈信息追代码，看到java层面最里面ZipFile.getEntry,再下面就是调用native方法了。 而初始化ZipFile这个类的时候会通过open方法生成一个long类型成员变量jzfile（getEntry会传入这个参数），open方法也是个native方法，看到usemmap可以知悉这里是默认采用mmap方式读取jar文件。<br><img src="https://ws2.sinaimg.cn/large/006tNc79ly1fvncwx24wcj318g0mqq5f.jpg" alt=""></p>
+<p>这一点在程序运行的使用使用lsof rhino-agent.jar也可以验证，java程序mmap了jar包的fd<br><img src="https://ws1.sinaimg.cn/large/006tNc79ly1fvncypb9nqj30vy04k0sz.jpg" alt=""></p>
+<p>调用栈最下面java部分来自于loggerFactory。对应到rhino-agent的代码中就是下面初始化一个logger的地方<br><img src="https://ws4.sinaimg.cn/large/006tNc79ly1fvnczi1fsyj310a05emx8.jpg" alt=""><br><img src="https://ws3.sinaimg.cn/large/006tNc79ly1fvncz9zxssj31b40jot9x.jpg" alt=""><br>这里的classloader是我们自定义的类加载器，对这个方法它没有重写getResources而是用了URLClassloader默认的遵循双亲委派模型的加载资源模式。<br><img src="https://ws1.sinaimg.cn/large/006tNc79ly1fvnd07x0icj30xo0b0dg7.jpg" alt=""><br>追到最里面是getEntry方法，它又是个native方法，传参包括一个上面open方法返回的jzfile和文件名。推测一下long类型的 jzfile应该是个c的地址变量，对于jar中的名为name的类文件应该是通过这个地址指针加上一个name计算出来的偏移量去获取的。考虑到双亲委派模型中父类加载器（applicationClassloader） 会常驻在堆中，所以对于applicationClassloader加载的jar包只open一次，无论attach多少次它的jzfile值都和第一次一样。<br><img src="https://ws2.sinaimg.cn/large/006tNc79ly1fvnd0xcv34j30za0o8ab0.jpg" alt=""><br>再往下只能下载openjdk的代码看，追一下zipfile类的open和getEntry方法。对于open方法可以注意到这么一段注释：<br><img src="https://ws2.sinaimg.cn/large/006tNc79ly1fvnd1igdr8j318q0wk76c.jpg" alt=""><br>open方法里的这段注释表示为了减少地址空间的使用以及加快mmap速度，zip open的时候并不会加载全部jar里的文件，而只是会mmap zip包中central directory这块。</p>
+<p>对于zip压缩算法可以参考zip文件格式，为了提高zip包更新速度，zip中有块Central directory部分用来存元数据，包括每个文件的位置、文件的概要信息等，每次变更的时候只需要在末尾再加个central directory块就行而不需要再遍历未变更的文件。<br><img src="https://ws4.sinaimg.cn/large/006tNc79ly1fvnd1pqfqqj31kw0vsjth.jpg" alt=""></p>
+<p>这种方法的初衷是好的，但在zip被其他进程修改的情况下那么libzip这个代码就无法感知到变化甚至出错了。首先open方法中会解析zip文件，并且给它的属性赋值，最终返回一个指向zip对象的指针。那么当文件被修改了，zip指针中指向的属性其实已经过期了，但我们可以看到在读取文件entry的地方它还在用这个属性值和mmap到的central directory地址值做地址偏移运算来计算返回entry对象，这些地方很容易造成地址的非法访问。<br><img src="https://ws3.sinaimg.cn/large/006tNc79ly1fvnd2nw54uj31300l2dgq.jpg" alt=""><br><img src="https://ws2.sinaimg.cn/large/006tNc79ly1fvnd2abb0oj30yc0wcgn2.jpg" alt=""><br>谷歌搜索一把，发现这个问题libzip导致的crush问题相当普遍，在oracle官网的博客中（<a href="https://blogs.oracle.com/poonam/crashes-in-zipgetentry）" target="_blank" rel="noopener">https://blogs.oracle.com/poonam/crashes-in-zipgetentry）</a> 指出这个问题可以使是用 -Dsun.zip.disableMemoryMapping=true  禁用mmap来规避，或者升级到jdk9以上， jdk9以上使用java原生实现了zip文件的解析，不存在调用C代码引起的非法访问问题。</p>
+<h1 id="bug修复"><a href="#bug修复" class="headerlink" title="bug修复"></a>bug修复</h1><p>解决方案1:</p>
+<p>自定义类加载重载getResource和getResources方法，不遵循双亲委派，防止应用类加载器也再次加载变更的类文件，而自定义类加载器由于每次都是new的，所以不存在多次加载变更类文件的问题。</p>
+<p>尴尬的一点是因为这个类加载本身使用应用类加载器加载的，会一直存留在内存中，所以不能通过更新jar包的方式更新，只能重启服务才能生效。</p>
+<p>解决方案2:</p>
+<p>不使用logback，重新实现日志模块。</p>
+
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/jvm/" rel="tag"># jvm</a>
+          
+            <a href="/tags/javaagent/" rel="tag"># javaagent</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+
+      
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+
+          </div>
+          
+
+
+          
+
+  
+
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview-wrap sidebar-panel">
+        <div class="site-overview">
+          <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+            
+              <p class="site-author-name" itemprop="name">tinyblink</p>
+              <p class="site-description motion-element" itemprop="description">golang docker web machine-learning</p>
+          </div>
+
+          <nav class="site-state motion-element">
+
+            
+              <div class="site-state-item site-state-posts">
+              
+                <a href="/archives/">
+              
+                  <span class="site-state-item-count">1</span>
+                  <span class="site-state-item-name">日志</span>
+                </a>
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-categories">
+                
+                  <span class="site-state-item-count">1</span>
+                  <span class="site-state-item-name">分类</span>
+                
+              </div>
+            
+
+            
+              
+              
+              <div class="site-state-item site-state-tags">
+                
+                  <span class="site-state-item-count">2</span>
+                  <span class="site-state-item-name">标签</span>
+                
+              </div>
+            
+
+          </nav>
+
+          
+
+          
+
+          
+          
+
+          
+          
+
+          
+
+        </div>
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#事件回顾"><span class="nav-number">1.</span> <span class="nav-text">事件回顾</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#问题排查"><span class="nav-number">2.</span> <span class="nav-text">问题排查</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#bug修复"><span class="nav-number">3.</span> <span class="nav-text">bug修复</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright">&copy; <span itemprop="copyrightYear">2018</span>
+  <span class="with-love">
+    <i class="fa fa-user"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">tinyblink</span>
+
+  
+</div>
+
+
+  <div class="powered-by">由 <a class="theme-link" target="_blank" href="https://hexo.io">Hexo</a> 强力驱动</div>
+
+
+
+  <span class="post-meta-divider">|</span>
+
+
+
+  <div class="theme-info">主题 &mdash; <a class="theme-link" target="_blank" href="https://github.com/iissnan/hexo-theme-next">NexT.Muse</a> v5.1.4</div>
+
+
+
+
+        
+
+
+
+
+
+
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+
+    
+
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+  
+
+  
+  
+    <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+  
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.4"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.4"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.4"></script>
+
+
+
+  
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+  
+
+  
+
+  
+  
+
+  
+
+  
+
+  
+
+</body>
+</html>
