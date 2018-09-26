@@ -102,7 +102,7 @@
 <meta property="og:image" content="https://ws4.sinaimg.cn/large/006tNc79ly1fvnd1pqfqqj31kw0vsjth.jpg">
 <meta property="og:image" content="https://ws3.sinaimg.cn/large/006tNc79ly1fvnd2nw54uj31300l2dgq.jpg">
 <meta property="og:image" content="https://ws2.sinaimg.cn/large/006tNc79ly1fvnd2abb0oj30yc0wcgn2.jpg">
-<meta property="og:updated_time" content="2018-09-26T15:41:32.936Z">
+<meta property="og:updated_time" content="2018-09-26T16:53:13.580Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="一次jvm crush问题排查">
 <meta name="twitter:description" content="事件回顾rhino-agent提供故障注入的功能，为了做到最大的灵活性和对业务无侵入，使用它可以不需要修改代码，不引入jar包甚至不需要重启，只需要在rhino管理端点一点即可注入故障。这种热更新的是主要通过agent自定义的classloader来实现，classloader每次attach的时候都会重新new一个自定义的classloader来负责加载agent jar包中所有的类。 初次验证">
@@ -352,11 +352,7 @@
 <p>调用栈最下面java部分来自于loggerFactory。对应到rhino-agent的代码中就是下面初始化一个logger的地方<br><img src="https://ws4.sinaimg.cn/large/006tNc79ly1fvnczi1fsyj310a05emx8.jpg" alt=""><br><img src="https://ws3.sinaimg.cn/large/006tNc79ly1fvncz9zxssj31b40jot9x.jpg" alt=""><br>这里的classloader是我们自定义的类加载器，对这个方法它没有重写getResources而是用了URLClassloader默认的遵循双亲委派模型的加载资源模式。<br><img src="https://ws1.sinaimg.cn/large/006tNc79ly1fvnd07x0icj30xo0b0dg7.jpg" alt=""><br>追到最里面是getEntry方法，它又是个native方法，传参包括一个上面open方法返回的jzfile和文件名。推测一下long类型的 jzfile应该是个c的地址变量，对于jar中的名为name的类文件应该是通过这个地址指针加上一个name计算出来的偏移量去获取的。考虑到双亲委派模型中父类加载器（applicationClassloader） 会常驻在堆中，所以对于applicationClassloader加载的jar包只open一次，无论attach多少次它的jzfile值都和第一次一样。<br><img src="https://ws2.sinaimg.cn/large/006tNc79ly1fvnd0xcv34j30za0o8ab0.jpg" alt=""><br>再往下只能下载openjdk的代码看，追一下zipfile类的open和getEntry方法。对于open方法可以注意到这么一段注释：<br><img src="https://ws2.sinaimg.cn/large/006tNc79ly1fvnd1igdr8j318q0wk76c.jpg" alt=""><br>open方法里的这段注释表示为了减少地址空间的使用以及加快mmap速度，zip open的时候并不会加载全部jar里的文件，而只是会mmap zip包中central directory这块。</p>
 <p>对于zip压缩算法可以参考zip文件格式，为了提高zip包更新速度，zip中有块Central directory部分用来存元数据，包括每个文件的位置、文件的概要信息等，每次变更的时候只需要在末尾再加个central directory块就行而不需要再遍历未变更的文件。<br><img src="https://ws4.sinaimg.cn/large/006tNc79ly1fvnd1pqfqqj31kw0vsjth.jpg" alt=""></p>
 <p>这种方法的初衷是好的，但在zip被其他进程修改的情况下那么libzip这个代码就无法感知到变化甚至出错了。首先open方法中会解析zip文件，并且给它的属性赋值，最终返回一个指向zip对象的指针。那么当文件被修改了，zip指针中指向的属性其实已经过期了，但我们可以看到在读取文件entry的地方它还在用这个属性值和mmap到的central directory地址值做地址偏移运算来计算返回entry对象，这些地方很容易造成地址的非法访问。<br><img src="https://ws3.sinaimg.cn/large/006tNc79ly1fvnd2nw54uj31300l2dgq.jpg" alt=""><br><img src="https://ws2.sinaimg.cn/large/006tNc79ly1fvnd2abb0oj30yc0wcgn2.jpg" alt=""><br>谷歌搜索一把，发现这个问题libzip导致的crush问题相当普遍，在oracle官网的博客中（<a href="https://blogs.oracle.com/poonam/crashes-in-zipgetentry）" target="_blank" rel="noopener">https://blogs.oracle.com/poonam/crashes-in-zipgetentry）</a> 指出这个问题可以使是用 -Dsun.zip.disableMemoryMapping=true  禁用mmap来规避，或者升级到jdk9以上， jdk9以上使用java原生实现了zip文件的解析，不存在调用C代码引起的非法访问问题。</p>
-<h1 id="bug修复"><a href="#bug修复" class="headerlink" title="bug修复"></a>bug修复</h1><p>解决方案1:</p>
-<p>自定义类加载重载getResource和getResources方法，不遵循双亲委派，防止应用类加载器也再次加载变更的类文件，而自定义类加载器由于每次都是new的，所以不存在多次加载变更类文件的问题。</p>
-<p>尴尬的一点是因为这个类加载本身使用应用类加载器加载的，会一直存留在内存中，所以不能通过更新jar包的方式更新，只能重启服务才能生效。</p>
-<p>解决方案2:</p>
-<p>不使用logback，重新实现日志模块。</p>
+<h1 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h1><p>java8一下如果有使用到zip或者file文件的使用，如果在使用时文件发生变更，一定要保证变更后重新打开文件而不是使用之前的文件。</p>
 
       
     </div>
@@ -513,7 +509,7 @@
             
 
             
-              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#事件回顾"><span class="nav-number">1.</span> <span class="nav-text">事件回顾</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#问题排查"><span class="nav-number">2.</span> <span class="nav-text">问题排查</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#bug修复"><span class="nav-number">3.</span> <span class="nav-text">bug修复</span></a></li></ol></div>
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#事件回顾"><span class="nav-number">1.</span> <span class="nav-text">事件回顾</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#问题排查"><span class="nav-number">2.</span> <span class="nav-text">问题排查</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#结论"><span class="nav-number">3.</span> <span class="nav-text">结论</span></a></li></ol></div>
             
 
           </div>
