@@ -68,7 +68,7 @@
 
 
 
-  <meta name="keywords" content="Hexo, NexT" />
+  <meta name="keywords" content="jvm,javaagent," />
 
 
 
@@ -79,16 +79,25 @@
 
 
 
-<meta name="description" content="golang docker web machine-learning">
-<meta property="og:type" content="website">
-<meta property="og:title" content="Tinyblink&#39;s Blog">
-<meta property="og:url" content="https://tinyblink.github.io/tags/javaagent/index.html">
+<meta name="description" content="事件回顾agent jar包在动态attach的刹那会产生99线升高的问题，感觉一刹那阻塞住了，怀疑是retransform的过程中有锁住业务线程或者甚至STW的过程。">
+<meta name="keywords" content="jvm,javaagent">
+<meta property="og:type" content="article">
+<meta property="og:title" content="attach引起阻塞问题排查">
+<meta property="og:url" content="https://tinyblink.github.io/2018/11/06/attach-latency/index.html">
 <meta property="og:site_name" content="Tinyblink&#39;s Blog">
-<meta property="og:description" content="golang docker web machine-learning">
+<meta property="og:description" content="事件回顾agent jar包在动态attach的刹那会产生99线升高的问题，感觉一刹那阻塞住了，怀疑是retransform的过程中有锁住业务线程或者甚至STW的过程。">
 <meta property="og:locale" content="zh-Hans">
+<meta property="og:image" content="https://ws3.sinaimg.cn/large/006tNbRwly1fwxndti4eij31kw0j4di3.jpg">
+<meta property="og:image" content="https://ws3.sinaimg.cn/large/006tNbRwly1fwxng0mnsvj310k08cq3e.jpg">
+<meta property="og:image" content="https://ws1.sinaimg.cn/large/006tNbRwly1fwxngwfx2nj314u09ut9h.jpg">
+<meta property="og:image" content="https://ws1.sinaimg.cn/large/006tNbRwly1fwxnhkclyyj30ze0nc3zi.jpg">
+<meta property="og:image" content="https://ws2.sinaimg.cn/large/006tNbRwly1fwxnjry2noj30dy0xatb7.jpg">
+<meta property="og:image" content="https://ws4.sinaimg.cn/large/006tNbRwly1fwxnlxxa31j31e60rkq5b.jpg">
+<meta property="og:updated_time" content="2018-11-05T16:40:14.935Z">
 <meta name="twitter:card" content="summary">
-<meta name="twitter:title" content="Tinyblink&#39;s Blog">
-<meta name="twitter:description" content="golang docker web machine-learning">
+<meta name="twitter:title" content="attach引起阻塞问题排查">
+<meta name="twitter:description" content="事件回顾agent jar包在动态attach的刹那会产生99线升高的问题，感觉一刹那阻塞住了，怀疑是retransform的过程中有锁住业务线程或者甚至STW的过程。">
+<meta name="twitter:image" content="https://ws3.sinaimg.cn/large/006tNbRwly1fwxndti4eij31kw0j4di3.jpg">
 
 
 
@@ -118,13 +127,13 @@
 
 
 
-  <link rel="canonical" href="https://tinyblink.github.io/tags/javaagent/"/>
+  <link rel="canonical" href="https://tinyblink.github.io/2018/11/06/attach-latency/"/>
 
 
 
 
 
-  <title>标签: javaagent | Tinyblink's Blog</title>
+  <title>attach引起阻塞问题排查 | Tinyblink's Blog</title>
   
 
 
@@ -143,7 +152,7 @@
     
   
 
-  <div class="container sidebar-position-left ">
+  <div class="container sidebar-position-left page-post-detail">
     <div class="headband"></div>
 
     <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
@@ -251,82 +260,187 @@
           <div id="content" class="content">
             
 
-  
-  
-  
-  <div class="post-block tag">
+  <div id="posts" class="posts-expand">
+    
 
-    <div id="posts" class="posts-collapse">
-      <div class="collection-title">
-        <h1>javaagent<small>标签</small>
-        </h1>
-      </div>
+  
 
-      
-        
+  
+  
+  
 
   <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-    <header class="post-header">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://tinyblink.github.io/2018/11/06/attach-latency/">
 
-      <h2 class="post-title">
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="tinyblink">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="https://ws2.sinaimg.cn/large/006tNc79ly1fvnhxef2flj30dc0dcjs0.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Tinyblink's Blog">
+    </span>
+
+    
+      <header class="post-header">
+
         
-            <a class="post-title-link" href="/2018/11/06/attach-latency/" itemprop="url">
-              
-                <span itemprop="name">attach引起阻塞问题排查</span>
-              
-            </a>
         
-      </h2>
+          <h1 class="post-title" itemprop="name headline">attach引起阻塞问题排查</h1>
+        
 
-      <div class="post-meta">
-        <time class="post-time" itemprop="dateCreated"
-              datetime="2018-11-06T00:18:25+08:00"
-              content="2018-11-06" >
-          11-06
-        </time>
-      </div>
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2018-11-06T00:18:25+08:00">
+                2018-11-06
+              </time>
+            
 
-    </header>
-  </article>
+            
 
+            
+          </span>
+
+          
+            <span class="post-category" >
+            
+              <span class="post-meta-divider">|</span>
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-folder-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">分类于</span>
+              
+              
+                <span itemprop="about" itemscope itemtype="http://schema.org/Thing">
+                  <a href="/categories/踩坑/" itemprop="url" rel="index">
+                    <span itemprop="name">踩坑</span>
+                  </a>
+                </span>
+
+                
+                
+              
+            </span>
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
 
       
-        
+      
 
-  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
-    <header class="post-header">
-
-      <h2 class="post-title">
-        
-            <a class="post-title-link" href="/2018/09/26/jvm-crush-bug/" itemprop="url">
-              
-                <span itemprop="name">一次jvm crush问题排查</span>
-              
-            </a>
-        
-      </h2>
-
-      <div class="post-meta">
-        <time class="post-time" itemprop="dateCreated"
-              datetime="2018-09-26T22:45:08+08:00"
-              content="2018-09-26" >
-          09-26
-        </time>
-      </div>
-
-    </header>
-  </article>
-
+      
+        <h1 id="事件回顾"><a href="#事件回顾" class="headerlink" title="事件回顾"></a>事件回顾</h1><p>agent jar包在动态attach的刹那会产生99线升高的问题，感觉一刹那阻塞住了，怀疑是retransform的过程中有锁住业务线程或者甚至STW的过程。<br><img src="https://ws3.sinaimg.cn/large/006tNbRwly1fwxndti4eij31kw0j4di3.jpg" alt=""><br><a id="more"></a><br>不过在查看了jvmti说明手册后却并没有找到相关阻塞住的描述<br><img src="https://ws3.sinaimg.cn/large/006tNbRwly1fwxng0mnsvj310k08cq3e.jpg" alt=""><br><img src="https://ws1.sinaimg.cn/large/006tNbRwly1fwxngwfx2nj314u09ut9h.jpg" alt=""></p>
+<h1 id="排查过程"><a href="#排查过程" class="headerlink" title="排查过程"></a>排查过程</h1><p>为了方便验证，这里本地写了简单的计时程序，对count方法注入故障，直接mock 123返回<br><img src="https://ws1.sinaimg.cn/large/006tNbRwly1fwxnhkclyyj30ze0nc3zi.jpg" alt=""><br><strong>可以看到注入后用asm库变更类字节码花销约20ms，而被注入的方法调用延迟却从0.1ms变到飙升到300ms左右，并且只有第一次调用有影响</strong><br><img src="https://ws2.sinaimg.cn/large/006tNbRwly1fwxnjry2noj30dy0xatb7.jpg" alt=""><br>这里再做几个试验还可以发现</p>
+<ol>
+<li>只对注入故障的方法有影响，不会延迟其他方法的调用 ==&gt; 应该没有明显的STW过程</li>
+<li>transform是个异步过程，在类变更完成之前不会影响原来类的使用 ==&gt; 没有明显的阻塞类使用的过程</li>
+<li>trasform的时间跟注入的类的调用时间并无关联 ==&gt;使用的asm性能并不会影响注入故障方法的调用</li>
+</ol>
+<h1 id="猜想"><a href="#猜想" class="headerlink" title="猜想"></a>猜想</h1><p>猜想这个问题应该是由注入的字节码引起的。在第一次调用的时候，有不少agent中的类尚未加载进来。使用了自定义类加载器，第一次注入时在内存中找不到类，需要从jar包中读取，经过完整的加载-验证-准备-解析-初始化 这样一个类加载过程，这个是相当耗时的。<br>（至于为什么字节码需要大量自定义类加载器+反射的形式来写，是因为业务类加载器和自定义类加载器是隔离的，自定义类加载器中存着故障信息，业务线程中使用业务类加载加载的时候为了获取到故障信息就需要使用自定义加载器+反射获取）</p>
+<h1 id="验证"><a href="#验证" class="headerlink" title="验证"></a>验证</h1><p>将加载时间打印出来<br><img src="https://ws4.sinaimg.cn/large/006tNbRwly1fwxnlxxa31j31e60rkq5b.jpg" alt=""><br>确实可以看出类加载消耗了很长时间</p>
+<h1 id="结论"><a href="#结论" class="headerlink" title="结论"></a>结论</h1><ul>
+<li><p>尽量预先加载</p>
+</li>
+<li><p>尽量不用反射</p>
+</li>
+<li><p>先怀疑自己的代码</p>
+</li>
+</ul>
 
       
     </div>
+    
+    
+    
 
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+        <div class="post-tags">
+          
+            <a href="/tags/jvm/" rel="tag"># jvm</a>
+          
+            <a href="/tags/javaagent/" rel="tag"># javaagent</a>
+          
+        </div>
+      
+
+      
+      
+      
+
+      
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+              <a href="/2018/09/26/jvm-crush-bug/" rel="next" title="一次jvm crush问题排查">
+                <i class="fa fa-chevron-left"></i> 一次jvm crush问题排查
+              </a>
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+          </div>
+        </div>
+      
+
+      
+      
+    </footer>
   </div>
   
   
   
+  </article>
 
-  
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
 
 
           </div>
@@ -334,6 +448,15 @@
 
 
           
+
+  
+    <div class="comments" id="comments">
+      <div id="lv-container" data-id="city" data-uid="MTAyMC8zOTk2OS8xNjQ5Ng"></div>
+    </div>
+
+  
+
+
 
         </div>
         
@@ -354,8 +477,17 @@
       
 
       
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap">
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview-wrap">
+            站点概览
+          </li>
+        </ul>
+      
 
-      <section class="site-overview-wrap sidebar-panel sidebar-panel-active">
+      <section class="site-overview-wrap sidebar-panel">
         <div class="site-overview">
           <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
             
@@ -435,6 +567,22 @@
         </div>
       </section>
 
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-1"><a class="nav-link" href="#事件回顾"><span class="nav-number">1.</span> <span class="nav-text">事件回顾</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#排查过程"><span class="nav-number">2.</span> <span class="nav-text">排查过程</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#猜想"><span class="nav-number">3.</span> <span class="nav-text">猜想</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#验证"><span class="nav-number">4.</span> <span class="nav-text">验证</span></a></li><li class="nav-item nav-level-1"><a class="nav-link" href="#结论"><span class="nav-number">5.</span> <span class="nav-text">结论</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
       
 
       
@@ -577,6 +725,10 @@
   
 
   
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.4"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.4"></script>
+
+
 
   
 
@@ -605,6 +757,17 @@
 
 
 
+  
+    <script type="text/javascript">
+      (function(d, s) {
+        var j, e = d.getElementsByTagName(s)[0];
+        if (typeof LivereTower === 'function') { return; }
+        j = d.createElement(s);
+        j.src = 'https://cdn-city.livere.com/js/embed.dist.js';
+        j.async = true;
+        e.parentNode.insertBefore(j, e);
+      })(document, 'script');
+    </script>
   
 
 
