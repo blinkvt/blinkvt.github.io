@@ -79,16 +79,16 @@
 
 
 
-<meta name="description" content="golang docker web machine-learning">
+<meta name="description" content="whatever">
 <meta property="og:type" content="website">
 <meta property="og:title" content="Tinyblink&#39;s Blog">
 <meta property="og:url" content="https://tinyblink.github.io/index.html">
 <meta property="og:site_name" content="Tinyblink&#39;s Blog">
-<meta property="og:description" content="golang docker web machine-learning">
+<meta property="og:description" content="whatever">
 <meta property="og:locale" content="zh-Hans">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="Tinyblink&#39;s Blog">
-<meta name="twitter:description" content="golang docker web machine-learning">
+<meta name="twitter:description" content="whatever">
 
 
 
@@ -160,7 +160,7 @@
       </a>
     </div>
       
-        <p class="site-subtitle">记录 沉淀 感悟</p>
+        <p class="site-subtitle">言而有物</p>
       
   </div>
 
@@ -264,12 +264,12 @@
   
   
   <div class="post-block">
-    <link itemprop="mainEntityOfPage" href="https://tinyblink.github.io/2019/04/27/hdr/">
+    <link itemprop="mainEntityOfPage" href="https://tinyblink.github.io/2019/04/28/jvmgc/">
 
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
       <meta itemprop="name" content="tinyblink">
       <meta itemprop="description" content="">
-      <meta itemprop="image" content="https://ws2.sinaimg.cn/large/006tNc79ly1fvnhxef2flj30dc0dcjs0.jpg">
+      <meta itemprop="image" content="/images/avatar.jpg">
     </span>
 
     <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
@@ -283,7 +283,7 @@
         
           <h1 class="post-title" itemprop="name headline">
                 
-                <a class="post-title-link" href="/2019/04/27/hdr/" itemprop="url">HDR</a></h1>
+                <a class="post-title-link" href="/2019/04/28/jvmgc/" itemprop="url">垃圾回收</a></h1>
         
 
         <div class="post-meta">
@@ -295,8 +295,8 @@
               
                 <span class="post-meta-item-text">发表于</span>
               
-              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-04-27T12:20:01+08:00">
-                2019-04-27
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-04-28T01:03:41+08:00">
+                2019-04-28
               </time>
             
 
@@ -335,7 +335,32 @@
       
         
           
-            <h1 id="HDR-有什么效果"><a href="#HDR-有什么效果" class="headerlink" title="HDR 有什么效果"></a>HDR 有什么效果</h1><p><img src="/2019/04/27/hdr/image-20190427010323167.png" alt="zz"></p>
+            <h2 id="背景"><a href="#背景" class="headerlink" title="背景"></a>背景</h2><p>汽车分手动挡和自动挡。手动挡油耗低，司机可以掌控的更多，缺点是需要更多的操作，碰到紧急情况也容易手忙脚乱；自动挡对于司机来说操作更简单，需要关心的更少，缺点是性能比不上手动挡。<br>类似的权衡也存在于编程语言中，编程语言面临内存分配之后回收的问题，是自动回收还是手动回收？手动回收效率更高，可以掌控的更多，但人毕竟不可避免犯错误，可能会引发内存泄漏，并且开发效率也不高；而自动回收将这件事交给了垃圾回收器，开发者从垃圾回收的问题中解放出来。<br>就像现在大多数的车都是自动挡，甚至向无人驾驶方面演进一样，流行的编程语言都有一套垃圾回收机制。比如Java有JVM GC，Go也有自己的runtime负责GC，即使是比较底层的C++，也提供并建议使用智能指针，相当于半自动的GC。<br>垃圾回收有两种算法实现：</p>
+<ul>
+<li><h3 id="引用计数"><a href="#引用计数" class="headerlink" title="引用计数"></a>引用计数</h3><p>  C++的智能指针采用这种方式，对象在退出栈前会检查自身的引用数是否为0，是的话就进行析构。这种方式有两个缺点，一是循环引用，智能指针中引入weak_ptr来解决；二是效率并不高，多线程情况下临界区一般要加锁操作、当然C++这里用了原子操作来保证销毁或是创建的次数不会错乱。然而在对象多线程连续销毁创建的时候性能是很差的，有些C++程序会用对象池，并延后进行销毁，规避不必要的连续销毁创建过程。</p>
+</li>
+<li><h3 id="可达性分析"><a href="#可达性分析" class="headerlink" title="可达性分析"></a>可达性分析</h3><pre><code>JVM的垃圾回收采取的是就是可达性分析。可达性分析指从GCRoot开始，被引用的对象均可标记为活着的对象。GCRoot包括
+    - 系统类加载器加载的类，
+    - 活着的线程
+    - Java栈上的局部变量
+    - JNI方法的局部变量
+    - 全局的JNI引用
+    - 监控对象
+    - JVM保留对象等
+</code></pre></li>
+</ul>
+<h2 id="JVM中的对象生命周期"><a href="#JVM中的对象生命周期" class="headerlink" title="JVM中的对象生命周期"></a>JVM中的对象生命周期</h2><p>在Java中对象分配销毁的过程由JVM代理实现，一定程度上解放了开发者。但是在出问题的时候开发者还是需要了解JVM的内部机制，其中GC就是很重要的机制。</p>
+<h3 id="对象分配"><a href="#对象分配" class="headerlink" title="对象分配"></a>对象分配</h3><p>在对象创建时首先会通过逃逸分析看是否对象可以直接在栈上分配(一种优化)，不行的话会在Java线程私有的一块区域TLAB上分配(一种无锁优化，只分配小对象)，否则的话开始在堆上分配。<br>那么如何在堆上分配，或者说堆如何设计才能使得效率最高呢。</p>
+<h3 id="堆划分"><a href="#堆划分" class="headerlink" title="堆划分"></a>堆划分</h3><p>这里就要抓住一个核心的规律：<code>绝大多数(90%)对象是朝生夕死的，存活下来的往往会存活的很长。扯开点说 这也是一种自然规律，类似的：马太效应，长尾效应，资本主义自由竞争终归会贫富悬殊，形成趋势后很难逆转，食物链低端微不足道的千千万万供养顶端的一个</code>。<br>划分成这两种不同的模式后需要采用不通的GC策略才能达到整体最有效果。</p>
+<ul>
+<li>YGC<br>在young区，采用的是copy 清理算法，因为大部分的对象都会死掉，所以GC时直接copy存活的就行，效率是要比标记高的。在Eden区满了后会将存活的copy到s0区，下次YGC的时候s0区和Eden区中存活的再copy到s1区，倒来倒去，周而复始。当达到一定次数后将年纪过大的对象丢到老年代。当然也有一些其他情况对象会直接进入老年代，比如对象太大,E区放不下。<br>copy算法的效率虽高，但是毕竟浪费一块内存，所以S区不能太大，否则浪费内存的同时STW的时间也过长。</li>
+<li>OldGC<br>在old区常用的算法是CMS GC，这是一种标记清理方式。其步骤可以分为：1.初始标记 2.并发标记 3.重新标记 4.并发清理。 stw在1 和 3。</li>
+</ul>
+<p><code>CMS GC的有点是吞吐较高，缺点是 1. 时间长，不可控，会随着堆的扩大而扩大; 2. 标记清理的方式原地回收，会有内存碎片的问题，默认在searial full gc的时候才会进行压缩整理</code></p>
+<h3 id="其他算法"><a href="#其他算法" class="headerlink" title="其他算法"></a>其他算法</h3><ul>
+<li>G1<br>G1 old区进行Region划分的G1,G1每次对更小的Region堆进行GC，减少停顿。G1可以通过计算将GC时间控制在可控范围内。</li>
+<li>ZGC<br>ZGC可以将GC时间控制在10ms内，并且GC停顿时间不再随着堆的扩大而变大;并且它是标记压缩的算法，没有内存碎片的问题。它只扫GCRoot，这个过程需要stw，但由于GCRoot（活跃的对象的引用）有限，基本只跟线程数有关，所以停顿短时间极端，在标记和清理阶段也几乎没有停顿，原理是利用着色指针（直接在指针上标记对象状态，通过原子操作比较）和读屏障（保证多线程可见性）来保证并发控制。  之后会compact，进行remap重定位，将活着的对象移动到另一个Region，整体回收原来的Region，这个并发控制也是利用着色指针和读屏障来保证。当然这种方式也有代价，就是吞吐会下降。多线程嘛，必然有竞态下的消耗。不像stw后操作，安全，单线程。</li>
+</ul>
 
           
         
@@ -389,7 +414,7 @@
     <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
       <meta itemprop="name" content="tinyblink">
       <meta itemprop="description" content="">
-      <meta itemprop="image" content="https://ws2.sinaimg.cn/large/006tNc79ly1fvnhxef2flj30dc0dcjs0.jpg">
+      <meta itemprop="image" content="/images/avatar.jpg">
     </span>
 
     <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
@@ -516,6 +541,269 @@
 
 
     
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://tinyblink.github.io/2019/04/27/hdr/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="tinyblink">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Tinyblink's Blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2019/04/27/hdr/" itemprop="url">HDR</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-04-27T12:20:01+08:00">
+                2019-04-27
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h1 id="HDR-有什么效果"><a href="#HDR-有什么效果" class="headerlink" title="HDR 有什么效果"></a>HDR 有什么效果</h1><p><img src="/2019/04/27/hdr/image-20190427010323167.png" alt="zz"></p>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope="" itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="https://tinyblink.github.io/2019/04/27/start/">
+
+    <span hidden itemprop="author" itemscope="" itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="tinyblink">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.jpg">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope="" itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="Tinyblink's Blog">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2019/04/27/start/" itemprop="url">写在开始</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2019-04-27T00:00:01+08:00">
+                2019-04-27
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <h2 id="为何开始写博客"><a href="#为何开始写博客" class="headerlink" title="为何开始写博客"></a>为何开始写博客</h2><ul>
+<li><p>记录</p>
+<p>年纪大了，搞过的东西容易忘记，在某一个阶段对某件事情认知会达到巅峰，如果不突破的话就会忘记。其实是挺可惜的，没到达终点，也应该记录下来，至少给后来者积累点经验。</p>
+<p>技术发展很快，当前的流行技术总归后面变得失去意义。然而就像出去游玩，看到那些美的不真实的地方会情不自禁拍照一样，留下一瞬间的精彩可以让人生变得真实。之于个体技术是没有意义的，但记忆有。</p>
+</li>
+<li><p>分享</p>
+<p>分享的过程可以重新整理自己的思路，形成整块的知识。</p>
+</li>
+<li><p>认知</p>
+<p>一个程序员新手需要花大量的时间跟这套冯·诺依曼设计的机器打交道，根据它的特性掌握对应的技巧，成为优秀的工程师。<br>很多软件层套路都是基于计算机体系结构初始设计的硬件特性，很多上层的想法设计其实在操作系统层或者硬件层都采用过了。认知在不断进步，不断沉淀会让自己看待同一个问题的角度不断深化，也有融汇贯通的作用。</p>
+</li>
+<li><p>独处</p>
+<p>独处时光是珍贵的，但当下有太多信息工具要撕裂人的时间。若是不想失去自我，每天就应该拥有独处的时间，跟自己对话。</p>
+</li>
+</ul>
+<h1 id="写什么"><a href="#写什么" class="headerlink" title="写什么"></a>写什么</h1><ul>
+<li><p>踩的坑</p>
+<p>记录下踩的坑，给后来者以经验。</p>
+</li>
+<li><p>技术上的感悟<br>看过很多很水的博客，东拼西凑不知所云，这种自己都没咀嚼透的东西拿出来，不知有何意义。收割韭菜？<br>代码层面很多东西都是相同的，我们应该尝试去掌握最核心的思想，对这些应该展开。而技术本身点到为止即可，毕竟写东西是花时间的，不宜写成流水账。</p>
+</li>
+<li><p><em>优秀的作品</em><br>  程序员跟工匠的属性是一样的，最能让别人信服，让自己安心的就是拿的出手的作品。在我看来优秀的代码作品和文学作品是有所区别，后者是艺术的范畴，需要天马行空的想象，需要对生活情感的透彻感悟。而代码作品优秀不仅在于代码写法上的雕琢，更在于思路和功能上的创新，这种创新一可能来源于他人提出的新的尚未落地的论文理论，也可能来源于利用更底层的机制。<br>  当然目前我离这个水平还差很多，希望早日努力能够实现吧。</p>
+</li>
+</ul>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
   </section>
 
   
@@ -551,10 +839,10 @@
         <div class="site-overview">
           <div class="site-author motion-element" itemprop="author" itemscope="" itemtype="http://schema.org/Person">
             
-              <img class="site-author-image" itemprop="image" src="https://ws2.sinaimg.cn/large/006tNc79ly1fvnhxef2flj30dc0dcjs0.jpg" alt="tinyblink">
+              <img class="site-author-image" itemprop="image" src="/images/avatar.jpg" alt="tinyblink">
             
               <p class="site-author-name" itemprop="name">tinyblink</p>
-              <p class="site-description motion-element" itemprop="description">golang docker web machine-learning</p>
+              <p class="site-description motion-element" itemprop="description">whatever</p>
           </div>
 
           <nav class="site-state motion-element">
@@ -564,32 +852,14 @@
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">2</span>
+                  <span class="site-state-item-count">4</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
             
 
             
-              
-              
-              <div class="site-state-item site-state-categories">
-                
-                  <span class="site-state-item-count">1</span>
-                  <span class="site-state-item-name">分类</span>
-                
-              </div>
-            
 
-            
-              
-              
-              <div class="site-state-item site-state-tags">
-                
-                  <span class="site-state-item-count">2</span>
-                  <span class="site-state-item-name">标签</span>
-                
-              </div>
             
 
           </nav>
